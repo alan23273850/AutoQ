@@ -141,6 +141,7 @@ public:
     static TreeAutomata uniform(int n);
     static TreeAutomata classical(int n);
     static TreeAutomata random(int n);
+    static TreeAutomata zero(int n);
 };
 
 #endif
