@@ -1746,6 +1746,58 @@ void AUTOQ::Automata<Symbol>::print_stats(const std::string &str, bool newline) 
         std::cout << std::endl;
 }
 
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::unfold() {
+    // typedef std::map<SymbolTag, std::map<StateVector, StateSet>> TransitionMap;
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        const auto &fc = fc_ios.first;
+        const auto &ios = fc_ios.second;
+        for (const auto &io : ios) {
+            const auto &outs = io.second;
+            for (const auto &top : outs) {
+                if (fc.first.is_leaf()) {
+                    transitions_result[fc][io.first].insert(top);
+                } else { // internal
+                    transitions_result[{fc.first.qubit() + 1, fc.second}][io.first].insert(top);
+                }
+                if (std::find(finalStates.begin(), finalStates.end(), top) != finalStates.end()) { // copy
+                    transitions_result[fc][io.first].insert(top + stateNum);
+                }
+            }
+        }
+    }
+    transitions = transitions_result;
+    for (unsigned i=0; i<finalStates.size(); i++)
+        finalStates.at(i) += stateNum;
+    stateNum *= 2;
+    qubitNum++;
+    remove_useless();
+    reduce();
+}
+
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::fold() {
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        const auto &fc = fc_ios.first;
+        const auto &ios = fc_ios.second;
+        for (const auto &io : ios) {
+            const auto &outs = io.second;
+            for (const auto &top : outs) {
+                if (fc.first.is_internal())
+                    transitions_result[{1, fc.second}][io.first].insert(top);
+                else
+                    transitions_result[fc][io.first].insert(top);
+            }
+        }
+    }
+    transitions = transitions_result;
+    qubitNum = 0;
+    remove_useless();
+    reduce();
+}
+
 // https://bytefreaks.net/programming-2/c/c-undefined-reference-to-templated-class-function
 template struct AUTOQ::Automata<AUTOQ::Symbol::Concrete>;
 template struct AUTOQ::Automata<AUTOQ::Symbol::Symbolic>;

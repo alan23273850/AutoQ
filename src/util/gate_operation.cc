@@ -127,7 +127,7 @@ void AUTOQ::Automata<Symbol>::Z(int t) {
                     transitions[symbol_tag][in].insert(s+stateNum);
             }
         }
-    } 
+    }
     for (auto &tr : transitions) {
         if (tr.first.is_leaf() || (tr.first.is_internal() && tr.first.symbol().qubit() > t)) break;
         if (tr.first.is_internal() && tr.first.symbol().qubit() == t) {
@@ -177,7 +177,7 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
 
     std::vector<bool> possible_next_level_states(2 * stateNum * stateNum + stateNum);
     assert(it->first.symbol().qubit() == t); // iterate over all internal transitions of symbol == t
-    for (; it != transitions.end(); it++) { 
+    for (; it != transitions.end(); it++) {
         if (it->first.is_leaf() || it->first.symbol().qubit() > t) break;
         for (const auto &in_outs : it->second) {
             assert(in_outs.first.size() == 2);
@@ -216,22 +216,22 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
                             //                  << stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1) << ")("
                             //                  << top1 << ")(" << top2 << ")(" << stateNum + top1*stateNum + top2 << ")\n";
                             // auto &nt = result.transitions[{it->first.symbol(), it->first.tag() | it2->first.tag()}];
-                            if (possible_previous_level_states[stateNum + top1*stateNum + top2]) {
+                            // if (possible_previous_level_states[stateNum + top1*stateNum + top2]) {
                                 fqci[it->first.symbol()][stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0), stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)});
                                 // nt[{stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0),
                                 //     stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)}]
                                 //     .insert(stateNum + top1*stateNum + top2); // (s1, s2, +) -> stateNum + s1 * stateNum + s2
                                 // possible_next_level_states[stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0)] = true;
                                 // possible_next_level_states[stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)] = true;
-                            }
-                            if (possible_previous_level_states[stateNum + stateNum*stateNum + top1*stateNum + top2]) {
+                            // }
+                            // if (possible_previous_level_states[stateNum + stateNum*stateNum + top1*stateNum + top2]) {
                                 fqci[it->first.symbol()][stateNum + stateNum*stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({stateNum + stateNum*stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0), stateNum + stateNum*stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)});
                                 // nt[{stateNum + stateNum*stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0),
                                 //     stateNum + stateNum*stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)}]
                                 //     .insert(stateNum + stateNum*stateNum + top1*stateNum + top2); // (s1, s2, -) -> stateNum + stateNum^2 + s1 * stateNum + s2
                                 // possible_next_level_states[stateNum + stateNum*stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0)] = true;
                                 // possible_next_level_states[stateNum + stateNum*stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)] = true;
-                            }
+                            // }
                         }
                     }
                 }
@@ -295,12 +295,12 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
                             // std::cout << (it->first.symbol() + it2->first.symbol()).divide_by_the_square_root_of_two() << "C\n";
                             // std::cout << (it->first.symbol() - it2->first.symbol()).divide_by_the_square_root_of_two() << "D\n";
                             // std::cout << "(" << stateNum << ")(" << top1 << ")(" << top2 << ")(" << stateNum + top1*stateNum + top2 << ")(" << stateNum + stateNum*stateNum + top1*stateNum + top2 << ")\n";
-                            if (possible_previous_level_states[stateNum + top1*stateNum + top2])
+                            // if (possible_previous_level_states[stateNum + top1*stateNum + top2])
                                 fqci[L(it->first.symbol(), it2->first.symbol())][stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({});
                                 // result.transitions[{(it->first.symbol() + it2->first.symbol()).divide_by_the_square_root_of_two(),
                                 //                     it->first.tag() | it2->first.tag()}][{}]
                                 //     .insert(stateNum + top1*stateNum + top2); // (s1, s2, +) -> stateNum + s1 * stateNum + s2
-                            if (possible_previous_level_states[stateNum + stateNum*stateNum + top1*stateNum + top2])
+                            // if (possible_previous_level_states[stateNum + stateNum*stateNum + top1*stateNum + top2])
                                 fqci[R(it->first.symbol(), it2->first.symbol())][stateNum + stateNum*stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({});
                                 // result.transitions[{(it->first.symbol() - it2->first.symbol()).divide_by_the_square_root_of_two(),
                                 //                     it->first.tag() | it2->first.tag()}][{}]
@@ -537,11 +537,11 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
                     for (const auto &top1 : in_out1.second) {
                         for (const auto &top2 : in_out2.second) {
                             construct_product_state_id(top1, top2, T);
-                            if (possible_previous_level_states[T]) {
+                            // if (possible_previous_level_states[T]) {
                                 construct_product_state_id(in_out1.first.at(0), in_out2.first.at(0), L);
                                 construct_product_state_id(in_out1.first.at(1), in_out2.first.at(1), R);
                                 fqci[it->first.symbol()][T][it->first.tag() | it2->first.tag()].push_back({L, R});
-                            }
+                            // }
                         }
                     }
                 }
@@ -602,7 +602,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
                     for (const auto &top1 : in_out1.second) {
                         for (const auto &top2 : in_out2.second) {
                             construct_product_state_id(top1, top2, T);
-                            if (possible_previous_level_states[T])
+                            // if (possible_previous_level_states[T])
                                 fqci[it->first.symbol()][T][it->first.tag() | it2->first.tag()].push_back({in_out1.first.at(0), stateNum + in_out2.first.at(1)});
                                 // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
                         }
@@ -655,11 +655,11 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
         for (const auto &in_outs : it->second) {
             assert(in_outs.first.size() == 2);
             for (const auto &top : in_outs.second) {
-                if (possible_previous_level_states[top])
+                // if (possible_previous_level_states[top])
                     fqci[it->first.symbol()][top][it->first.tag()].push_back(in_outs.first);
             }
         }
-        
+
         if (std::next(it, 1) == transitions.end() || std::next(it, 1)->first.is_leaf() || it->first.symbol().qubit() != std::next(it, 1)->first.symbol().qubit()) { // this layer is finished!
             for (; it2 != aut2.transitions.end(); it2++) {
                 if (it2->first.is_leaf()) break; // another internal transition
@@ -668,7 +668,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
                 for (const auto &in_outs : it2->second) {
                     assert(in_outs.first.size() == 2);
                     for (const auto &top : in_outs.second) {
-                        if (possible_previous_level_states[top+stateNum]) // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
+                        // if (possible_previous_level_states[top+stateNum]) // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
                             fqci[it2->first.symbol()][top+stateNum][it2->first.tag()].push_back({in_outs.first.at(0)+stateNum, in_outs.first.at(1)+stateNum});
                     }
                 }
@@ -715,7 +715,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
         for (const auto &in_outs : it->second) {
             assert(in_outs.first.size() == 0);
             for (const auto &top : in_outs.second) {
-                if (possible_previous_level_states[top])
+                // if (possible_previous_level_states[top])
                     fqci[it->first.symbol()][top][it->first.tag()].push_back({});
             }
         }
@@ -724,7 +724,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
         for (const auto &in_outs : it2->second) {
             assert(in_outs.first.size() == 0);
             for (const auto &top : in_outs.second) {
-                if (possible_previous_level_states[top+stateNum]) // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
+                // if (possible_previous_level_states[top+stateNum]) // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
                     fqci[it2->first.symbol()][top+stateNum][it2->first.tag()].push_back({});
             }
         }
@@ -842,7 +842,7 @@ void AUTOQ::Automata<Symbol>::CZ(int c, int t) {
                     ttf[in].insert(s+stateNum);
             }
         }
-    }   
+    }
     for (auto &tr : transitions) {
         if (tr.first.is_leaf() || (tr.first.is_internal() && tr.first.symbol().qubit() > c)) break;
         if (tr.first.is_internal() && tr.first.symbol().qubit() == c) {
@@ -1054,6 +1054,35 @@ void AUTOQ::Automata<Symbol>::swap(int t1, int t2) {
     if (gateLog) std::cout << "swap" << t1 << "," << t2 << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
 }
 
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::CX() {
+    auto start = std::chrono::steady_clock::now();
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        const auto &fc = fc_ios.first;
+        const auto &ios = fc_ios.second;
+        for (const auto &io : ios) {
+            const auto &outs = io.second;
+            for (const auto &top : outs) {
+                if (fc.first.is_leaf()) {
+                    transitions_result[fc][io.first].insert(top);
+                    transitions_result[fc][io.first].insert(top + stateNum);
+                } else {
+                    transitions_result[fc][{io.first.at(0), io.first.at(1) + stateNum}].insert(top);
+                    transitions_result[fc][{io.first.at(1), io.first.at(0) + stateNum}].insert(top + stateNum);
+                }
+            }
+        }
+    }
+    transitions = transitions_result;
+    stateNum *= 2;
+    remove_useless();
+    reduce();
+    gateCount++;
+    auto duration = std::chrono::steady_clock::now() - start;
+    // if (gateLog) std::cout << "CNOT" << c << "," << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
+}
+
 // void AUTOQ::Automata<Symbol>::Fredkin(int c, int t, int t2) {
 //     auto start = std::chrono::steady_clock::now();
 //     assert(c != t && t != t2 && t2 != c);
@@ -1087,7 +1116,7 @@ void AUTOQ::Automata<Symbol>::swap(int t1, int t2) {
 template <typename Symbol>
 void AUTOQ::Automata<Symbol>::randG(int G, int A, int B, int C) {
     int g, a, b, c;
-    do { 
+    do {
         g = rand() % 11;
         a = rand() % qubitNum + 1;
         if (g >= 8) {

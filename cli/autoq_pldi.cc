@@ -8,6 +8,7 @@
 #include <util_sim.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <autoq/complex/complex.hh>
 
 #include <chrono>
 #include <iomanip>
@@ -56,8 +57,82 @@ optional arguments:
     }
 
     if (argc < 5) {
-        AUTOQ::TreeAutomata aut = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Concrete>::FromFileToAutomata(argv[1]);
-        aut.execute(argv[2]);
+        AUTOQ::TreeAutomata aut;
+        aut.finalStates.push_back(0);
+        aut.stateNum = 5;
+        aut.qubitNum = 0;
+        // q -> 0
+        // ql -> 1
+        // q0 -> 2
+        // ql' -> 3
+        // q0' -> 4
+        aut.transitions[{1, 0b10}][{1, 2}].insert(0);
+        aut.transitions[{1, 0b10}][{2, 2}].insert(2);
+        aut.transitions[{1, 0b1}][{3, 4}].insert(0);
+        aut.transitions[{1, 0b1}][{4, 4}].insert(2);
+        aut.transitions[{1, 0b10}][{1, 2}].insert(1);
+        aut.transitions[{AUTOQ::Complex::Complex::Zero(), 0b1}][{}].insert(4);
+        aut.transitions[{1, 0b1}][{3, 4}].insert(1);
+        aut.transitions[{AUTOQ::Complex::Complex::One(), 0b1}][{}].insert(3);
+        // aut.print_aut("Initial:\n");
+        aut.unfold();
+        // aut.print_aut("Unfold:\n");
+        aut.H(1);
+        // aut.print_aut("H:\n");
+        aut.fold();
+        // aut.print_aut("Fold:\n");
+
+        // AUTOQ::TreeAutomata checkpoint;
+        // checkpoint.finalStates.push_back(0);
+        // checkpoint.stateNum = 3;
+        // checkpoint.qubitNum = 0;
+        // checkpoint.transitions[{1, 0b1}][{1, 1}].insert(0);
+        // checkpoint.transitions[{1, 0b1}][{1, 2}].insert(1);
+        // checkpoint.transitions[{1, 0b1}][{2, 2}].insert(2);
+        // checkpoint.transitions[{AUTOQ::Complex::Complex::One().divide_by_the_square_root_of_two(), 0b10}][{}].insert(1);
+        // checkpoint.transitions[{AUTOQ::Complex::Complex::Zero(), 0b10}][{}].insert(2);
+        // checkpoint.fraction_simplification();
+        // checkpoint.print_aut("Checkpoint:\n");
+        // std::cout << AUTOQ::TreeAutomata::check_inclusion(aut, checkpoint) << "\n";
+
+        aut.CX();
+        // aut.print_aut("Result:\n");
+
+        AUTOQ::TreeAutomata ans;
+        ans.finalStates.push_back(0);
+        ans.stateNum = 6;
+        ans.qubitNum = 0;
+        // p -> 0
+        // l -> 1
+        // r -> 2
+        // 0 -> 3
+        // 0' -> 4
+        // 1' -> 5
+        ans.transitions[{1, 0b10}][{1, 2}].insert(0);
+        ans.transitions[{1, 0b10}][{3, 2}].insert(2);
+        ans.transitions[{1, 0b1}][{5, 5}].insert(0);
+        ans.transitions[{1, 0b1}][{4, 5}].insert(2);
+        ans.transitions[{AUTOQ::Complex::Complex::Zero(), 0b1}][{}].insert(4);
+        ans.transitions[{1, 0b10}][{1, 3}].insert(1);
+        ans.transitions[{1, 0b10}][{3, 3}].insert(3);
+        ans.transitions[{1, 0b1}][{5, 4}].insert(1);
+        ans.transitions[{1, 0b1}][{4, 4}].insert(3);
+        ans.transitions[{AUTOQ::Complex::Complex::One().divide_by_the_square_root_of_two(), 0b1}][{}].insert(5);
+        // ans.print_aut("Post-condition:\n");
+
+        AUTOQ::TreeAutomata::check_equal(aut, ans);
+        aut.print_stats();
+        return 0;
+
+
+        // aut.stateNum = 2*(aut.qubitNum-1) + 1;
+        // aut.transitions[Concrete(Complex::Zero())][{}] = {aut.stateNum++};
+        // aut.transitions[Concrete(Complex::One().divide_by_the_square_root_of_two())][{}] = {aut.stateNum++};
+        // aut.transitions[Concrete(Complex::One().divide_by_the_square_root_of_two() * (-1))][{}] = {aut.stateNum++};
+        // aut.transitions[Concrete(aut.qubitNum)][{aut.stateNum - 3, aut.stateNum - 3}] = {static_cast<AUTOQ::TreeAutomata::State>(2*(aut.qubitNum-1) - 1)};
+        // aut.transitions[Concrete(aut.qubitNum)][{aut.stateNum - 2, aut.stateNum - 1}] = {static_cast<AUTOQ::TreeAutomata::State>(2*(aut.qubitNum-1))};
+        // AUTOQ::TreeAutomata aut = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Concrete>::FromFileToAutomata(argv[1]);
+        // aut.execute(argv[2]);
         aut.fraction_simplification();
         if (argc >= 4) {
             auto aut2 = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Concrete>::FromFileToAutomata(argv[3]);

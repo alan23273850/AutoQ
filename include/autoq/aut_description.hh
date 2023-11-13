@@ -205,6 +205,7 @@ public:
     void Tdg(int t);
     void Sdg(int t);
     void swap(int t1, int t2);
+    void CX();
 
     /* Produce an automaton instance. */
     static Automata uniform(int n);
@@ -225,6 +226,9 @@ public:
 
     void execute(const char *filename);
     void print_language(const char *str="") const;
+
+    void unfold();
+    void fold();
 };
 
 
