@@ -190,7 +190,7 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
     }
 
     auto head = it;
-    std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>> fqci;
+    std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>> qcfi;
     std::vector<bool> possible_previous_level_states = possible_next_level_states;
     for (; it != transitions.end(); it++) { // iterate over all internal transitions of symbol > t
         if (it->first.is_leaf()) break; // assert internal transition
@@ -217,7 +217,7 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
                             //                  << top1 << ")(" << top2 << ")(" << stateNum + top1*stateNum + top2 << ")\n";
                             // auto &nt = result.transitions[{it->first.symbol(), it->first.tag() | it2->first.tag()}];
                             // if (possible_previous_level_states[stateNum + top1*stateNum + top2]) {
-                                fqci[it->first.symbol()][stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0), stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)});
+                                qcfi[stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({it->first.symbol(), {stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0), stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)}});
                                 // nt[{stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0),
                                 //     stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)}]
                                 //     .insert(stateNum + top1*stateNum + top2); // (s1, s2, +) -> stateNum + s1 * stateNum + s2
@@ -225,7 +225,7 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
                                 // possible_next_level_states[stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)] = true;
                             // }
                             // if (possible_previous_level_states[stateNum + stateNum*stateNum + top1*stateNum + top2]) {
-                                fqci[it->first.symbol()][stateNum + stateNum*stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({stateNum + stateNum*stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0), stateNum + stateNum*stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)});
+                                qcfi[stateNum + stateNum*stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({it->first.symbol(), {stateNum + stateNum*stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0), stateNum + stateNum*stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)}});
                                 // nt[{stateNum + stateNum*stateNum + in_out1.first.at(0)*stateNum + in_out2.first.at(0),
                                 //     stateNum + stateNum*stateNum + in_out1.first.at(1)*stateNum + in_out2.first.at(1)}]
                                 //     .insert(stateNum + stateNum*stateNum + top1*stateNum + top2); // (s1, s2, -) -> stateNum + stateNum^2 + s1 * stateNum + s2
@@ -238,46 +238,42 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
             }
         }
         if (std::next(it, 1) == transitions.end() || std::next(it, 1)->first.is_leaf() || it->first.symbol().qubit() != std::next(it, 1)->first.symbol().qubit()) { // this layer is finished!
-            std::map<Symbol, std::map<State, std::vector<Tag>>> delete_colors;
-            for (const auto &f_ : fqci) {
-                for (const auto &q_ : f_.second) {
-                    for (auto q_ptr = q_.second.rbegin(); q_ptr != q_.second.rend(); ++q_ptr) {
-                        if (q_ptr->second.size() >= 2) {
-                            delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                        }
-                        else {
-                            for (auto q_ptr2 = q_.second.begin(); q_ptr2 != q_.second.end(); ++q_ptr2) {
-                                if (q_ptr2->first >= q_ptr->first) break;
-                                if ((q_ptr->first | q_ptr2->first) == q_ptr->first) {
-                                    delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                                    break;
-                                }
+            std::map<State, std::set<Tag>> delete_colors;
+            for (const auto &q_ : qcfi) {
+                for (auto c_ptr = q_.second.rbegin(); c_ptr != q_.second.rend(); ++c_ptr) {
+                    if (c_ptr->second.size() >= 2) {
+                        delete_colors[q_.first].insert(c_ptr->first);
+                    }
+                    else {
+                        for (auto c_ptr2 = q_.second.begin(); c_ptr2 != q_.second.end(); ++c_ptr2) {
+                            if (c_ptr2->first >= c_ptr->first) break;
+                            if ((c_ptr->first | c_ptr2->first) == c_ptr->first) {
+                                delete_colors[q_.first].insert(c_ptr->first);
+                                break;
                             }
                         }
                     }
                 }
             }
-            for (const auto &f_ : fqci) {
-                for (const auto &q_ : f_.second) {
-                    for (const auto &c_ : q_.second) {
-                        auto &dcfq = delete_colors[f_.first][q_.first];
-                        if (std::find(dcfq.begin(), dcfq.end(), c_.first) != dcfq.end()) continue;
-                        for (const auto &in : c_.second) {
-                            result.transitions[{f_.first, c_.first}][in].insert(q_.first);
-                            for (const auto &s : in)
-                                possible_next_level_states[s] = true;
-                        }
+            for (const auto &q_ : qcfi) {
+                const auto &dc_q = delete_colors[q_.first];
+                for (const auto &c_ : q_.second) {
+                    if (std::find(dc_q.begin(), dc_q.end(), c_.first) != dc_q.end()) continue;
+                    for (const auto &f_i : c_.second) {
+                        result.transitions[{f_i.first, c_.first}][f_i.second].insert(q_.first);
+                        for (const auto &s : f_i.second)
+                            possible_next_level_states[s] = true;
                     }
                 }
             }
 
-            fqci = std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>>();
+            qcfi = std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>>();
         }
     }
 
     head = it;
     possible_previous_level_states = possible_next_level_states;
-    fqci = std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>>(); // may be redundant due to LINE 278
+    qcfi = std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>>(); // may be redundant due to LINE 278
     for (; it != transitions.end(); it++) { // iterate over all leaf transitions
         assert(it->first.is_leaf()); // assert leaf transition
         for (auto it2 = head; it2 != transitions.end(); it2++) {
@@ -296,12 +292,12 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
                             // std::cout << (it->first.symbol() - it2->first.symbol()).divide_by_the_square_root_of_two() << "D\n";
                             // std::cout << "(" << stateNum << ")(" << top1 << ")(" << top2 << ")(" << stateNum + top1*stateNum + top2 << ")(" << stateNum + stateNum*stateNum + top1*stateNum + top2 << ")\n";
                             // if (possible_previous_level_states[stateNum + top1*stateNum + top2])
-                                fqci[L(it->first.symbol(), it2->first.symbol())][stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({});
+                                qcfi[stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({L(it->first.symbol(), it2->first.symbol()), {}});
                                 // result.transitions[{(it->first.symbol() + it2->first.symbol()).divide_by_the_square_root_of_two(),
                                 //                     it->first.tag() | it2->first.tag()}][{}]
                                 //     .insert(stateNum + top1*stateNum + top2); // (s1, s2, +) -> stateNum + s1 * stateNum + s2
                             // if (possible_previous_level_states[stateNum + stateNum*stateNum + top1*stateNum + top2])
-                                fqci[R(it->first.symbol(), it2->first.symbol())][stateNum + stateNum*stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({});
+                                qcfi[stateNum + stateNum*stateNum + top1*stateNum + top2][it->first.tag() | it2->first.tag()].push_back({R(it->first.symbol(), it2->first.symbol()), {}});
                                 // result.transitions[{(it->first.symbol() - it2->first.symbol()).divide_by_the_square_root_of_two(),
                                 //                     it->first.tag() | it2->first.tag()}][{}]
                                 //     .insert(stateNum + stateNum*stateNum + top1*stateNum + top2); // (s1, s2, -) -> stateNum + stateNum^2 + s1 * stateNum + s2
@@ -311,35 +307,31 @@ void AUTOQ::Automata<Symbol>::General_Single_Qubit_Gate(int t, std::function<Sym
             }
         }
     }
-    std::map<Symbol, std::map<State, std::vector<Tag>>> delete_colors;
-    for (const auto &f_ : fqci) {
-        for (const auto &q_ : f_.second) {
-            for (auto q_ptr = q_.second.rbegin(); q_ptr != q_.second.rend(); ++q_ptr) {
-                if (q_ptr->second.size() >= 2) {
-                    delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                }
-                else {
-                    for (auto q_ptr2 = q_.second.begin(); q_ptr2 != q_.second.end(); ++q_ptr2) {
-                        if (q_ptr2->first >= q_ptr->first) break;
-                        if ((q_ptr->first | q_ptr2->first) == q_ptr->first) {
-                            delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                            break;
-                        }
+    std::map<State, std::set<Tag>> delete_colors;
+    for (const auto &q_ : qcfi) {
+        for (auto c_ptr = q_.second.rbegin(); c_ptr != q_.second.rend(); ++c_ptr) {
+            if (c_ptr->second.size() >= 2) {
+                delete_colors[q_.first].insert(c_ptr->first);
+            }
+            else {
+                for (auto c_ptr2 = q_.second.begin(); c_ptr2 != q_.second.end(); ++c_ptr2) {
+                    if (c_ptr2->first >= c_ptr->first) break;
+                    if ((c_ptr->first | c_ptr2->first) == c_ptr->first) {
+                        delete_colors[q_.first].insert(c_ptr->first);
+                        break;
                     }
                 }
             }
         }
     }
-    for (const auto &f_ : fqci) {
-        for (const auto &q_ : f_.second) {
-            for (const auto &c_ : q_.second) {
-                auto &dcfq = delete_colors[f_.first][q_.first];
-                if (std::find(dcfq.begin(), dcfq.end(), c_.first) != dcfq.end()) continue;
-                for (const auto &in : c_.second) {
-                    result.transitions[{f_.first, c_.first}][in].insert(q_.first);
-                    // for (const auto &s : in)
-                    //     possible_next_level_states[s] = true;
-                }
+    for (const auto &q_ : qcfi) {
+        const auto &dc_q = delete_colors[q_.first];
+        for (const auto &c_ : q_.second) {
+            if (std::find(dc_q.begin(), dc_q.end(), c_.first) != dc_q.end()) continue;
+            for (const auto &f_i : c_.second) {
+                result.transitions[{f_i.first, c_.first}][f_i.second].insert(q_.first);
+                // for (const auto &s : f_i.second)
+                //     possible_next_level_states[s] = true;
             }
         }
     }
@@ -512,7 +504,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
     auto it = transitions.begin(); // global pointer
     auto head = aut2.transitions.begin();
     auto tail = head; // just borrow its type to declare the variable
-    std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>> fqci;
+    std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>> qcfi;
     for (; it != transitions.end(); it++) { // iterate over all internal transitions of symbol < c
         if (it->first.is_leaf()) break; // assert internal transition
         if (it->first.symbol().qubit() >= c) {
@@ -540,7 +532,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
                             // if (possible_previous_level_states[T]) {
                                 construct_product_state_id(in_out1.first.at(0), in_out2.first.at(0), L);
                                 construct_product_state_id(in_out1.first.at(1), in_out2.first.at(1), R);
-                                fqci[it->first.symbol()][T][it->first.tag() | it2->first.tag()].push_back({L, R});
+                                qcfi[T][it->first.tag() | it2->first.tag()].push_back({it->first.symbol(), {L, R}});
                             // }
                         }
                     }
@@ -548,41 +540,37 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
             }
         }
         if (std::next(it, 1) == transitions.end() || std::next(it, 1)->first.is_leaf() || it->first.symbol().qubit() != std::next(it, 1)->first.symbol().qubit()) { // this layer is finished!
-            std::map<Symbol, std::map<State, std::vector<Tag>>> delete_colors;
-            for (const auto &f_ : fqci) {
-                for (const auto &q_ : f_.second) {
-                    for (auto q_ptr = q_.second.rbegin(); q_ptr != q_.second.rend(); ++q_ptr) {
-                        if (q_ptr->second.size() >= 2) {
-                            delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                        }
-                        else {
-                            for (auto q_ptr2 = q_.second.begin(); q_ptr2 != q_.second.end(); ++q_ptr2) {
-                                if (q_ptr2->first >= q_ptr->first) break;
-                                if ((q_ptr->first | q_ptr2->first) == q_ptr->first) {
-                                    delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                                    break;
-                                }
+            std::map<State, std::set<Tag>> delete_colors;
+            for (const auto &q_ : qcfi) {
+                for (auto c_ptr = q_.second.rbegin(); c_ptr != q_.second.rend(); ++c_ptr) {
+                    if (c_ptr->second.size() >= 2) {
+                        delete_colors[q_.first].insert(c_ptr->first);
+                    }
+                    else {
+                        for (auto c_ptr2 = q_.second.begin(); c_ptr2 != q_.second.end(); ++c_ptr2) {
+                            if (c_ptr2->first >= c_ptr->first) break;
+                            if ((c_ptr->first | c_ptr2->first) == c_ptr->first) {
+                                delete_colors[q_.first].insert(c_ptr->first);
+                                break;
                             }
                         }
                     }
                 }
             }
-            for (const auto &f_ : fqci) {
-                for (const auto &q_ : f_.second) {
-                    for (const auto &c_ : q_.second) {
-                        auto &dcfq = delete_colors[f_.first][q_.first];
-                        if (std::find(dcfq.begin(), dcfq.end(), c_.first) != dcfq.end()) continue;
-                        for (const auto &in : c_.second) {
-                            if (it->first.symbol().qubit() == 1) // remember to add final states
-                                result.finalStates.push_back(q_.first);
-                            result.transitions[{f_.first, c_.first}][in].insert(q_.first);
-                            for (const auto &s : in)
-                                possible_next_level_states[s] = true;
-                        }
+            for (const auto &q_ : qcfi) {
+                const auto &dc_q = delete_colors[q_.first];
+                for (const auto &c_ : q_.second) {
+                    if (std::find(dc_q.begin(), dc_q.end(), c_.first) != dc_q.end()) continue;
+                    for (const auto &f_i : c_.second) {
+                        if (it->first.symbol().qubit() == 1) // remember to add final states
+                            result.finalStates.push_back(q_.first);
+                        result.transitions[{f_i.first, c_.first}][f_i.second].insert(q_.first);
+                        for (const auto &s : f_i.second)
+                            possible_next_level_states[s] = true;
                     }
                 }
             }
-            fqci = std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>>();
+            qcfi = std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>>();
         }
     }
 
@@ -603,7 +591,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
                         for (const auto &top2 : in_out2.second) {
                             construct_product_state_id(top1, top2, T);
                             // if (possible_previous_level_states[T])
-                                fqci[it->first.symbol()][T][it->first.tag() | it2->first.tag()].push_back({in_out1.first.at(0), stateNum + in_out2.first.at(1)});
+                                qcfi[T][it->first.tag() | it2->first.tag()].push_back({it->first.symbol(), {in_out1.first.at(0), stateNum + in_out2.first.at(1)}});
                                 // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
                         }
                     }
@@ -612,40 +600,36 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
         }
         tail = it2; // for future use
     }
-    std::map<Symbol, std::map<State, std::vector<Tag>>> delete_colors;
-    for (const auto &f_ : fqci) {
-        for (const auto &q_ : f_.second) {
-            for (auto q_ptr = q_.second.rbegin(); q_ptr != q_.second.rend(); ++q_ptr) {
-                if (q_ptr->second.size() >= 2) {
-                    delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                }
-                else {
-                    for (auto q_ptr2 = q_.second.begin(); q_ptr2 != q_.second.end(); ++q_ptr2) {
-                        if (q_ptr2->first >= q_ptr->first) break;
-                        if ((q_ptr->first | q_ptr2->first) == q_ptr->first) {
-                            delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                            break;
-                        }
+    std::map<State, std::set<Tag>> delete_colors;
+    for (const auto &q_ : qcfi) {
+        for (auto c_ptr = q_.second.rbegin(); c_ptr != q_.second.rend(); ++c_ptr) {
+            if (c_ptr->second.size() >= 2) {
+                delete_colors[q_.first].insert(c_ptr->first);
+            }
+            else {
+                for (auto c_ptr2 = q_.second.begin(); c_ptr2 != q_.second.end(); ++c_ptr2) {
+                    if (c_ptr2->first >= c_ptr->first) break;
+                    if ((c_ptr->first | c_ptr2->first) == c_ptr->first) {
+                        delete_colors[q_.first].insert(c_ptr->first);
+                        break;
                     }
                 }
             }
         }
     }
-    for (const auto &f_ : fqci) {
-        for (const auto &q_ : f_.second) {
-            for (const auto &c_ : q_.second) {
-                auto &dcfq = delete_colors[f_.first][q_.first];
-                if (std::find(dcfq.begin(), dcfq.end(), c_.first) != dcfq.end()) continue;
-                for (const auto &in : c_.second) {
-                    if (c == 1) result.finalStates.push_back(q_.first);  // remember to add final states
-                    result.transitions[{f_.first, c_.first}][in].insert(q_.first);
-                    for (const auto &s : in)
-                        possible_next_level_states[s] = true;
-                }
+    for (const auto &q_ : qcfi) {
+        auto &dc_q = delete_colors[q_.first];
+        for (const auto &c_ : q_.second) {
+            if (std::find(dc_q.begin(), dc_q.end(), c_.first) != dc_q.end()) continue;
+            for (const auto &f_i : c_.second) {
+                if (c == 1) result.finalStates.push_back(q_.first);  // remember to add final states
+                result.transitions[{f_i.first, c_.first}][f_i.second].insert(q_.first);
+                for (const auto &s : f_i.second)
+                    possible_next_level_states[s] = true;
             }
         }
     }
-    fqci = std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>>();
+    qcfi = std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>>();
 
     auto it2 = tail; // global pointer now
     possible_previous_level_states = possible_next_level_states;
@@ -656,7 +640,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
             assert(in_outs.first.size() == 2);
             for (const auto &top : in_outs.second) {
                 // if (possible_previous_level_states[top])
-                    fqci[it->first.symbol()][top][it->first.tag()].push_back(in_outs.first);
+                    qcfi[top][it->first.tag()].push_back({it->first.symbol(), in_outs.first});
             }
         }
 
@@ -669,44 +653,40 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
                     assert(in_outs.first.size() == 2);
                     for (const auto &top : in_outs.second) {
                         // if (possible_previous_level_states[top+stateNum]) // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
-                            fqci[it2->first.symbol()][top+stateNum][it2->first.tag()].push_back({in_outs.first.at(0)+stateNum, in_outs.first.at(1)+stateNum});
+                            qcfi[top+stateNum][it2->first.tag()].push_back({it2->first.symbol(), {in_outs.first.at(0)+stateNum, in_outs.first.at(1)+stateNum}});
                     }
                 }
             }
 
-            std::map<Symbol, std::map<State, std::vector<Tag>>> delete_colors;
-            for (const auto &f_ : fqci) {
-                for (const auto &q_ : f_.second) {
-                    for (auto q_ptr = q_.second.rbegin(); q_ptr != q_.second.rend(); ++q_ptr) {
-                        if (q_ptr->second.size() >= 2) {
-                            delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                        }
-                        else {
-                            for (auto q_ptr2 = q_.second.begin(); q_ptr2 != q_.second.end(); ++q_ptr2) {
-                                if (q_ptr2->first >= q_ptr->first) break;
-                                if ((q_ptr->first | q_ptr2->first) == q_ptr->first) {
-                                    delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                                    break;
-                                }
+            std::map<State, std::set<Tag>> delete_colors;
+            for (const auto &q_ : qcfi) {
+                for (auto c_ptr = q_.second.rbegin(); c_ptr != q_.second.rend(); ++c_ptr) {
+                    if (c_ptr->second.size() >= 2) {
+                        delete_colors[q_.first].insert(c_ptr->first);
+                    }
+                    else {
+                        for (auto c_ptr2 = q_.second.begin(); c_ptr2 != q_.second.end(); ++c_ptr2) {
+                            if (c_ptr2->first >= c_ptr->first) break;
+                            if ((c_ptr->first | c_ptr2->first) == c_ptr->first) {
+                                delete_colors[q_.first].insert(c_ptr->first);
+                                break;
                             }
                         }
                     }
                 }
             }
-            for (const auto &f_ : fqci) {
-                for (const auto &q_ : f_.second) {
-                    for (const auto &c_ : q_.second) {
-                        auto &dcfq = delete_colors[f_.first][q_.first];
-                        if (std::find(dcfq.begin(), dcfq.end(), c_.first) != dcfq.end()) continue;
-                        for (const auto &in : c_.second) {
-                            result.transitions[{f_.first, c_.first}][in].insert(q_.first);
-                            for (const auto &s : in)
-                                possible_next_level_states[s] = true;
-                        }
+            for (const auto &q_ : qcfi) {
+                for (const auto &c_ : q_.second) {
+                    auto &dc_q = delete_colors[q_.first];
+                    if (std::find(dc_q.begin(), dc_q.end(), c_.first) != dc_q.end()) continue;
+                    for (const auto &f_i : c_.second) {
+                        result.transitions[{f_i.first, c_.first}][f_i.second].insert(q_.first);
+                        for (const auto &s : f_i.second)
+                            possible_next_level_states[s] = true;
                     }
                 }
             }
-            fqci = std::map<Symbol, std::map<State, std::map<Tag, std::vector<StateVector>>>>();
+            qcfi = std::map<State, std::map<Tag, std::vector<std::pair<Symbol, StateVector>>>>();
             possible_previous_level_states = possible_next_level_states;
         }
     }
@@ -716,7 +696,7 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
             assert(in_outs.first.size() == 0);
             for (const auto &top : in_outs.second) {
                 // if (possible_previous_level_states[top])
-                    fqci[it->first.symbol()][top][it->first.tag()].push_back({});
+                    qcfi[top][it->first.tag()].push_back({it->first.symbol(), {}});
             }
         }
     }
@@ -725,39 +705,35 @@ void AUTOQ::Automata<Symbol>::General_Controlled_Gate(int c, const AUTOQ::Automa
             assert(in_outs.first.size() == 0);
             for (const auto &top : in_outs.second) {
                 // if (possible_previous_level_states[top+stateNum]) // IMPORTANT: Aut2's state ids must be added by aut1's state number to become the global state ids.
-                    fqci[it2->first.symbol()][top+stateNum][it2->first.tag()].push_back({});
+                    qcfi[top+stateNum][it2->first.tag()].push_back({it2->first.symbol(), {}});
             }
         }
     }
     delete_colors.clear();
-    for (const auto &f_ : fqci) {
-        for (const auto &q_ : f_.second) {
-            for (auto q_ptr = q_.second.rbegin(); q_ptr != q_.second.rend(); ++q_ptr) {
-                if (q_ptr->second.size() >= 2) {
-                    delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                }
-                else {
-                    for (auto q_ptr2 = q_.second.begin(); q_ptr2 != q_.second.end(); ++q_ptr2) {
-                        if (q_ptr2->first >= q_ptr->first) break;
-                        if ((q_ptr->first | q_ptr2->first) == q_ptr->first) {
-                            delete_colors[f_.first][q_.first].push_back(q_ptr->first);
-                            break;
-                        }
+    for (const auto &q_ : qcfi) {
+        for (auto c_ptr = q_.second.rbegin(); c_ptr != q_.second.rend(); ++c_ptr) {
+            if (c_ptr->second.size() >= 2) {
+                delete_colors[q_.first].insert(c_ptr->first);
+            }
+            else {
+                for (auto c_ptr2 = q_.second.begin(); c_ptr2 != q_.second.end(); ++c_ptr2) {
+                    if (c_ptr2->first >= c_ptr->first) break;
+                    if ((c_ptr->first | c_ptr2->first) == c_ptr->first) {
+                        delete_colors[q_.first].insert(c_ptr->first);
+                        break;
                     }
                 }
             }
         }
     }
-    for (const auto &f_ : fqci) {
-        for (const auto &q_ : f_.second) {
-            for (const auto &c_ : q_.second) {
-                auto &dcfq = delete_colors[f_.first][q_.first];
-                if (std::find(dcfq.begin(), dcfq.end(), c_.first) != dcfq.end()) continue;
-                for (const auto &in : c_.second) {
-                    result.transitions[{f_.first, c_.first}][in].insert(q_.first);
-                    for (const auto &s : in)
-                        possible_next_level_states[s] = true;
-                }
+    for (const auto &q_ : qcfi) {
+        auto &dc_q = delete_colors[q_.first];
+        for (const auto &c_ : q_.second) {
+            if (std::find(dc_q.begin(), dc_q.end(), c_.first) != dc_q.end()) continue;
+            for (const auto &f_i : c_.second) {
+                result.transitions[{f_i.first, c_.first}][f_i.second].insert(q_.first);
+                for (const auto &s : f_i.second)
+                    possible_next_level_states[s] = true;
             }
         }
     }
