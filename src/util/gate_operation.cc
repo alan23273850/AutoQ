@@ -1059,6 +1059,35 @@ void AUTOQ::Automata<Symbol>::CX() {
     // if (gateLog) std::cout << "CNOT" << c << "," << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
 }
 
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::CX_inv() {
+    auto start = std::chrono::steady_clock::now();
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        const auto &fc = fc_ios.first;
+        const auto &ios = fc_ios.second;
+        for (const auto &io : ios) {
+            const auto &outs = io.second;
+            for (const auto &top : outs) {
+                if (fc.first.is_leaf()) {
+                    transitions_result[fc][io.first].insert(top);
+                    transitions_result[fc][io.first].insert(top + stateNum);
+                } else {
+                    transitions_result[fc][{io.first.at(0), io.first.at(1) + stateNum}].insert(top);
+                    transitions_result[fc][{io.first.at(1) + stateNum, io.first.at(0)}].insert(top + stateNum);
+                }
+            }
+        }
+    }
+    transitions = transitions_result;
+    stateNum *= 2;
+    remove_useless();
+    reduce();
+    gateCount++;
+    auto duration = std::chrono::steady_clock::now() - start;
+    // if (gateLog) std::cout << "CNOT" << c << "," << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
+}
+
 // void AUTOQ::Automata<Symbol>::Fredkin(int c, int t, int t2) {
 //     auto start = std::chrono::steady_clock::now();
 //     assert(c != t && t != t2 && t2 != c);

@@ -1763,7 +1763,7 @@ void AUTOQ::Automata<Symbol>::print_stats(const std::string &str, bool newline) 
 }
 
 template <typename Symbol>
-void AUTOQ::Automata<Symbol>::unfold() {
+void AUTOQ::Automata<Symbol>::unfold_top() {
     // typedef std::map<SymbolTag, std::map<StateVector, StateSet>> TransitionMap;
     TransitionMap transitions_result;
     for (const auto &fc_ios : transitions) {
@@ -1779,6 +1779,43 @@ void AUTOQ::Automata<Symbol>::unfold() {
                 }
                 if (std::find(finalStates.begin(), finalStates.end(), top) != finalStates.end()) { // copy
                     transitions_result[fc][io.first].insert(top + stateNum);
+                }
+            }
+        }
+    }
+    transitions = transitions_result;
+    for (unsigned i=0; i<finalStates.size(); i++)
+        finalStates.at(i) += stateNum;
+    stateNum *= 2;
+    qubitNum++;
+    remove_useless();
+    reduce();
+}
+
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::unfold_bottom() {
+    // typedef std::map<SymbolTag, std::map<StateVector, StateSet>> TransitionMap;
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        const auto &fc = fc_ios.first;
+        const auto &ios = fc_ios.second;
+        for (const auto &io : ios) {
+            const auto &outs = io.second;
+            for (const auto &top : outs) {
+                if (fc.first.is_leaf()) {
+                    transitions_result[fc][io.first].insert(top);
+                } else { // internal
+                    if (fc.first.qubit() == 1) {
+                        transitions_result[{fc.first.qubit() + 1, fc.second}][io.first].insert(top + stateNum);
+                    } else {
+                        transitions_result[{fc.first.qubit() + 1, fc.second}][io.first].insert(top);
+                    }
+                    if (fc.first.qubit() == 1) {
+                        StateVector io2;
+                        for (const auto &s : io.first)
+                            io2.push_back(s + stateNum);
+                        transitions_result[{fc.first.qubit(), fc.second}][io2].insert(top + stateNum);
+                    }
                 }
             }
         }
@@ -1812,6 +1849,20 @@ void AUTOQ::Automata<Symbol>::fold() {
     qubitNum = 0;
     remove_useless();
     reduce();
+}
+
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::phase(const boost::rational<boost::multiprecision::cpp_int> &r) {
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        auto symbol = fc_ios.first.symbol();
+        const auto &tag = fc_ios.first.tag();
+        if (symbol.is_internal())
+            transitions_result.insert(fc_ios);
+        else
+            transitions_result[{symbol.counterclockwise(r), tag}] = fc_ios.second;
+    }
+    transitions = transitions_result;
 }
 
 // https://bytefreaks.net/programming-2/c/c-undefined-reference-to-templated-class-function

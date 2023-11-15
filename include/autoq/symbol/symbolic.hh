@@ -91,7 +91,7 @@ public:
         assert(internal);
         // assert(complex.imag() == 0);
         return complex.at(Complex::Complex::One()).at("1");
-    }    
+    }
     void back_to_zero() { complex.clear(); }
     friend std::ostream& operator<<(std::ostream& os, const Symbolic& obj) {
         os << AUTOQ::Util::Convert::ToString(obj.complex);
@@ -194,6 +194,10 @@ public:
             complex2[k.clockwise(boost::rational<boost::multiprecision::cpp_int>(1, 4))] = v;
         }
         complex = complex2;
+    }
+    Symbolic counterclockwise(const boost::rational<boost::multiprecision::cpp_int> &r) {
+        AUTOQ_ALERT("Symbolic's counterclockwise is temporarily disabled.");
+        return *this;
     }
 };
 

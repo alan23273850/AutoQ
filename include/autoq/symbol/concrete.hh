@@ -61,6 +61,10 @@ public:
     void negate() { complex = complex * (-1); }
     void degree45cw() { complex.clockwise(boost::rational<boost::multiprecision::cpp_int>(1, 8)); }
     void degree90cw() { complex.clockwise(boost::rational<boost::multiprecision::cpp_int>(1, 4)); }
+    Concrete counterclockwise(const boost::rational<boost::multiprecision::cpp_int> &r) {
+        complex.counterclockwise(r);
+        return *this;
+    }
 };
 
 namespace boost {
