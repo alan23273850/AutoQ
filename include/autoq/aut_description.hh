@@ -158,9 +158,9 @@ private:
     // void swap_backward(const int k);
     void General_Single_Qubit_Gate(int t, std::function<Symbol(const Symbol&, const Symbol&)> L, std::function<Symbol(const Symbol&, const Symbol&)> R);
     void General_Controlled_Gate(int c, const AUTOQ::Automata<Symbol> &aut2);
-    void initialize_stats();
 
 public:
+    void initialize_stats();
     void fraction_simplification();
     void omega_multiplication(int rotation=1);
     void divide_by_the_square_root_of_two();

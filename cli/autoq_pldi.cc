@@ -74,6 +74,7 @@ optional arguments:
         aut.transitions[{AUTOQ::Complex::Complex::Zero(), 0b1}][{}].insert(4);
         aut.transitions[{1, 0b1}][{3, 4}].insert(1);
         aut.transitions[{AUTOQ::Complex::Complex::One(), 0b1}][{}].insert(3);
+        aut.initialize_stats();
         // aut.print_aut("Initial:\n");
         aut.unfold();
         // aut.print_aut("Unfold:\n");
@@ -97,6 +98,7 @@ optional arguments:
 
         aut.CX();
         // aut.print_aut("Result:\n");
+        aut.stop_execute = std::chrono::steady_clock::now();
 
         AUTOQ::TreeAutomata ans;
         ans.finalStates.push_back(0);
@@ -120,7 +122,7 @@ optional arguments:
         ans.transitions[{AUTOQ::Complex::Complex::One().divide_by_the_square_root_of_two(), 0b1}][{}].insert(5);
         // ans.print_aut("Post-condition:\n");
 
-        AUTOQ::TreeAutomata::check_equal(aut, ans);
+        AUTOQ::TreeAutomata::check_inclusion(aut, ans);
         aut.print_stats();
         return 0;
 
