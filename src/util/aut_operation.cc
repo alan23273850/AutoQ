@@ -1768,27 +1768,50 @@ void AUTOQ::Automata<Symbol>::print_stats(const std::string &str, bool newline) 
 template <typename Symbol>
 void AUTOQ::Automata<Symbol>::unfold_top() {
     // typedef std::map<SymbolTag, std::map<StateVector, StateSet>> TransitionMap;
-    TransitionMap transitions_result;
+    TransitionMap transitions_insert;
+    std::map<SymbolTag, std::vector<StateVector>> transitions_delete;
     for (const auto &fc_ios : transitions) {
         const auto &fc = fc_ios.first;
         const auto &ios = fc_ios.second;
         for (const auto &io : ios) {
+            const auto &in = io.first;
             const auto &outs = io.second;
             for (const auto &top : outs) {
-                if (fc.first.is_leaf()) {
-                    transitions_result[fc][io.first].insert(top);
-                } else { // internal
-                    transitions_result[{fc.first.qubit() + 1, fc.second}][io.first].insert(top);
+                if (fc.symbol().is_leaf()) {
+                    // StateVector in2;
+                    // for (const auto &s : in)
+                    //     in2.push_back(s + stateNum);
+                    transitions_insert[fc][{}].insert(top + stateNum);
                 }
-                if (std::find(finalStates.begin(), finalStates.end(), top) != finalStates.end()) { // copy
-                    transitions_result[fc][io.first].insert(top + stateNum);
+                if (fc.symbol().is_internal() && fc.symbol().qubit() == qubitNum+1) {
+                    StateVector in2;
+                    for (const auto &s : in)
+                        in2.push_back(s + stateNum);
+                    transitions_insert[{fc.symbol().qubit()+1, fc.second}][in2].insert(top + stateNum);
+                    transitions_insert[fc][in2].insert(top);
                 }
+            }
+            if (fc.symbol().is_internal() && fc.symbol().qubit() == qubitNum+1)
+                transitions_delete[fc].push_back(in);
+        }
+    }
+    for (const auto &fc_ins : transitions_delete) {
+        const auto &fc = fc_ins.first;
+        const auto &ins = fc_ins.second;
+        for (const auto &in : ins)
+            transitions[fc].erase(in);
+    }
+    for (const auto &fc_ios : transitions_insert) {
+        const auto &fc = fc_ios.first;
+        const auto &ios = fc_ios.second;
+        for (const auto &io : ios) {
+            const auto &in = io.first;
+            const auto &outs = io.second;
+            for (const auto &top : outs) {
+                transitions[fc][in].insert(top);
             }
         }
     }
-    transitions = transitions_result;
-    for (unsigned i=0; i<finalStates.size(); i++)
-        finalStates.at(i) += stateNum;
     stateNum *= 2;
     qubitNum++;
     remove_useless();
