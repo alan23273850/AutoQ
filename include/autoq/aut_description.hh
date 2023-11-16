@@ -197,6 +197,9 @@ public:
     void T(int t);
     void Rx(int t);
     void Ry(int t);
+    void Rz90(int t);
+    void Rzn90(int t);
+    void Rxn90(int t);
     void CNOT(int c, int t, bool opt=true);
     void CZ(int c, int t);
     void Toffoli(int c, int c2, int t);

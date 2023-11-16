@@ -473,6 +473,51 @@ void AUTOQ::Automata<Symbol>::Ry(int t) {
     if (gateLog) std::cout << "Ry" << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
 }
 
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::Rz90(int t) {
+    #ifdef TO_QASM
+        system(("echo 'ry(pi/2) qubits[" + std::to_string(t-1) + "];' >> " + QASM_FILENAME).c_str());
+        return;
+    #endif
+    auto start = std::chrono::steady_clock::now();
+    General_Single_Qubit_Gate(t,
+        [](Symbol l, const Symbol &r) -> Symbol { return l.omega_multiplication(-1); },
+        [](const Symbol &l, Symbol r) -> Symbol { return r.omega_multiplication(1); });
+    gateCount++;
+    auto duration = std::chrono::steady_clock::now() - start;
+    if (gateLog) std::cout << "Rz90" << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
+}
+
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::Rzn90(int t) {
+    #ifdef TO_QASM
+        system(("echo 'ry(pi/2) qubits[" + std::to_string(t-1) + "];' >> " + QASM_FILENAME).c_str());
+        return;
+    #endif
+    auto start = std::chrono::steady_clock::now();
+    General_Single_Qubit_Gate(t,
+        [](Symbol l, const Symbol &r) -> Symbol { return l.omega_multiplication(1); },
+        [](const Symbol &l, Symbol r) -> Symbol { return r.omega_multiplication(-1); });
+    gateCount++;
+    auto duration = std::chrono::steady_clock::now() - start;
+    if (gateLog) std::cout << "Rzn90" << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
+}
+
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::Rxn90(int t) {
+    #ifdef TO_QASM
+        system(("echo 'ry(pi/2) qubits[" + std::to_string(t-1) + "];' >> " + QASM_FILENAME).c_str());
+        return;
+    #endif
+    auto start = std::chrono::steady_clock::now();
+    General_Single_Qubit_Gate(t,
+        [](const Symbol &l, Symbol r) -> Symbol { return (l + r.omega_multiplication(2)).divide_by_the_square_root_of_two(); },
+        [](Symbol l, const Symbol &r) -> Symbol { return (r + l.omega_multiplication(2)).divide_by_the_square_root_of_two(); });
+    gateCount++;
+    auto duration = std::chrono::steady_clock::now() - start;
+    if (gateLog) std::cout << "Rxn90" << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
+}
+
 // IMPORTANT: Leave the space of size stateNum + aut2.stateNum for the original two automata!
 #define construct_product_state_id(a, b, i) \
     State i = stateNum + aut2.stateNum + a * aut2.stateNum + b;

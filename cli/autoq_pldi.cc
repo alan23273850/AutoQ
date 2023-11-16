@@ -59,57 +59,57 @@ optional arguments:
     if (argc < 5) {
         AUTOQ::TreeAutomata aut, ans;
         aut.finalStates.push_back(0);
-        aut.stateNum = 10;
+        aut.stateNum = 5;
         aut.qubitNum = 0;
         // q -> 0
-        // 0l -> 1
-        // 0r -> 2
-        // r1 -> 3
-        // r2 -> 4
-        // l -> 5
-        // 0l' -> 6
-        // 0r' -> 7
-        // l' -> 8
-        // r2' -> 9
-        aut.transitions[{1, 0b1}][{2, 3}].insert(0);
-        aut.transitions[{1, 0b1}][{2, 4}].insert(3);
-        aut.transitions[{1, 0b1}][{2, 3}].insert(4);
-        aut.transitions[{1, 0b1}][{2, 2}].insert(2);
-        aut.transitions[{1, 0b1}][{2, 3}].insert(5);
-        aut.transitions[{1, 0b1}][{2, 2}].insert(1);
-        aut.transitions[{1, 0b10}][{5, 1}].insert(0);
-        aut.transitions[{1, 0b10}][{5, 1}].insert(4);
-        aut.transitions[{1, 0b10}][{1, 1}].insert(2);
-        aut.transitions[{1, 0b10}][{5, 1}].insert(5);
-        aut.transitions[{1, 0b10}][{1, 1}].insert(1);
-        aut.transitions[{1, 0b100}][{7, 9}].insert(3);
-        aut.transitions[{1, 0b100}][{8, 6}].insert(4);
-        aut.transitions[{1, 0b100}][{8, 6}].insert(5);
-        aut.transitions[{1, 0b100}][{7, 7}].insert(2);
-        aut.transitions[{1, 0b100}][{6, 6}].insert(1);
-        aut.transitions[{AUTOQ::Complex::Complex::One(), 0b1000}][{}].insert(9);
-        aut.transitions[{AUTOQ::Complex::Complex::One(), 0b1000}][{}].insert(8);
-        aut.transitions[{AUTOQ::Complex::Complex::Zero(), 0b1000}][{}].insert(6);
-        aut.transitions[{AUTOQ::Complex::Complex::Zero(), 0b1000}][{}].insert(7);
-        ans = aut;
+        // ql -> 1
+        // q0 -> 2
+        // ql' -> 3
+        // q0' -> 4
+        aut.transitions[{1, 0b10}][{1, 2}].insert(0);
+        aut.transitions[{1, 0b10}][{2, 2}].insert(2);
+        aut.transitions[{1, 0b1}][{3, 4}].insert(0);
+        aut.transitions[{1, 0b1}][{4, 4}].insert(2);
+        aut.transitions[{1, 0b10}][{1, 2}].insert(1);
+        aut.transitions[{AUTOQ::Complex::Complex::Zero(), 0b1}][{}].insert(4);
+        aut.transitions[{1, 0b1}][{3, 4}].insert(1);
+        aut.transitions[{AUTOQ::Complex::Complex::One(), 0b1}][{}].insert(3);
         aut.initialize_stats();
-        // aut.print_aut("Initial:\n");
-        aut.phase(boost::rational<boost::multiprecision::cpp_int>(-1, 4));
-        // aut.print_aut("Phase(-pi/2):\n");
-        aut.CX();
-        // aut.print_aut("CX:\n");
-        aut.unfold_bottom();
-        // aut.print_aut("Unfold:\n");
-        aut.Z(2);
-        // aut.print_aut("Z(2):\n");
-        aut.phase(boost::rational<boost::multiprecision::cpp_int>(1, 4));
-        // aut.print_aut("Phase(pi/2):\n");
+
+        aut.unfold_top();
+        aut.Rx(1);
         aut.fold();
-        // aut.print_aut("Fold:\n");
+        aut.unfold_bottom();
+        aut.H(2);
+        aut.fold();
+        aut.CX();
+        aut.unfold_bottom();
+        aut.Rz90(2);
+        aut.fold();
         aut.CX_inv();
-        // aut.print_aut("CX_inv:\n");
+        aut.unfold_top();
+        aut.Rxn90(1);
+        aut.H(1);
+        aut.fold();
+        aut.unfold_bottom();
+        aut.H(2);
+        aut.Rx(2);
+        aut.fold();
+        aut.CX();
+        aut.unfold_bottom();
+        aut.Rzn90(2);
+        aut.fold();
+        aut.CX_inv();
+        aut.unfold_top();
+        aut.H(1);
+        aut.fold();
+        aut.unfold_bottom();
+        aut.Rxn90(2);
+        aut.fold();
+
         aut.stop_execute = std::chrono::steady_clock::now();
-        // ans.print_aut("Ans:\n");
+        ans = aut;
+        ans.sim_reduce();
         AUTOQ::TreeAutomata::check_inclusion(aut, ans);
         aut.print_stats();
         return 0;
