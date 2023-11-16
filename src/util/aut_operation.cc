@@ -1877,20 +1877,6 @@ void AUTOQ::Automata<Symbol>::fold() {
     reduce();
 }
 
-template <typename Symbol>
-void AUTOQ::Automata<Symbol>::phase(const boost::rational<boost::multiprecision::cpp_int> &r) {
-    TransitionMap transitions_result;
-    for (const auto &fc_ios : transitions) {
-        auto symbol = fc_ios.first.symbol();
-        const auto &tag = fc_ios.first.tag();
-        if (symbol.is_internal())
-            transitions_result.insert(fc_ios);
-        else
-            transitions_result[{symbol.counterclockwise(r), tag}] = fc_ios.second;
-    }
-    transitions = transitions_result;
-}
-
 // https://bytefreaks.net/programming-2/c/c-undefined-reference-to-templated-class-function
 template struct AUTOQ::Automata<AUTOQ::Symbol::Concrete>;
 template struct AUTOQ::Automata<AUTOQ::Symbol::Symbolic>;

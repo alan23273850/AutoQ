@@ -1088,6 +1088,24 @@ void AUTOQ::Automata<Symbol>::CX_inv() {
     // if (gateLog) std::cout << "CNOT" << c << "," << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
 }
 
+template <typename Symbol>
+void AUTOQ::Automata<Symbol>::phase(const boost::rational<boost::multiprecision::cpp_int> &r) {
+    auto start = std::chrono::steady_clock::now();
+    TransitionMap transitions_result;
+    for (const auto &fc_ios : transitions) {
+        auto symbol = fc_ios.first.symbol();
+        const auto &tag = fc_ios.first.tag();
+        if (symbol.is_internal())
+            transitions_result.insert(fc_ios);
+        else
+            transitions_result[{symbol.counterclockwise(r), tag}] = fc_ios.second;
+    }
+    transitions = transitions_result;
+    gateCount++;
+    auto duration = std::chrono::steady_clock::now() - start;
+    // if (gateLog) std::cout << "phase" << c << "," << t << "：" << stateNum << " states " << count_transitions() << " transitions " << toString(duration) << "\n";
+}
+
 // void AUTOQ::Automata<Symbol>::Fredkin(int c, int t, int t2) {
 //     auto start = std::chrono::steady_clock::now();
 //     assert(c != t && t != t2 && t2 != c);
