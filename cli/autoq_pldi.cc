@@ -110,7 +110,7 @@ optional arguments:
         // aut.print_aut("CX_inv:\n");
         aut.stop_execute = std::chrono::steady_clock::now();
         // ans.print_aut("Ans:\n");
-        AUTOQ::TreeAutomata::check_equal(aut, ans);
+        AUTOQ::TreeAutomata::check_inclusion(aut, ans);
         aut.print_stats();
         return 0;
 
