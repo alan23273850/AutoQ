@@ -1,11 +1,12 @@
 #!/usr/bin/python3
-import os, subprocess
+import os, re, subprocess
 from ctypes import c_wchar_p
 from multiprocessing import Manager, Process, Semaphore, Lock
 
 name = 'Table2.tex'
 TIMEOUT = 300
-NUM_OF_THREADS = 100
+NUM_OF_CASES = 45 * 5
+NUM_OF_THREADS = NUM_OF_CASES
 CTA_EXE = '../../autoq_pldi_cta'
 TA_EXE = '../../autoq_pldi_ta'
 VATA_EXE = '../../vata'
@@ -40,13 +41,12 @@ def CTA(root, stR, semaphore, lock, counter):
         elif ret == 124:
             stR.value = q + ' & ' + G + ' & ' + r'\multicolumn{6}{c}{\timeout}'
         else:
-            stR.value = q + ' & ' + G + ' & ' + r'\multicolumn{6}{c}{error}'
+            stR.value = q + ' & ' + G + ' & ' + r'\multicolumn{6}{c}{\error}'
         lock.acquire()
-        counter.value+=1; print(counter.value, '/ 90')
+        counter.value+=1; print(counter.value, f'/ {NUM_OF_CASES}')
         lock.release()
 def TA(root, stR, semaphore, lock, counter):
     with semaphore:
-        root = root.replace('spec', 'aut')
         p = subprocess.run(f'grep -Po ".*qreg.*\[\K\d+(?=\];)" {root}/circuit.qasm', shell=True, capture_output=True, executable='/bin/bash')
         q = p.stdout.splitlines()[0].decode('utf-8')
         p = subprocess.run(f'grep -P ".*(x |y |z |h |s |t |rx\(pi/2\) |ry\(pi/2\) |cx |cz |ccx |tdg |sdg |swap ).*\[\d+\];" {root}/circuit.qasm | wc -l', shell=True, capture_output=True, executable='/bin/bash')
@@ -61,10 +61,83 @@ def TA(root, stR, semaphore, lock, counter):
         elif ret == 124:
             stR.value = q + ' & ' + G + ' & ' + r'\multicolumn{6}{c}{\timeout}'
         else:
-            stR.value = q + ' & ' + G + ' & ' + r'\multicolumn{6}{c}{error}'
+            stR.value = q + ' & ' + G + ' & ' + r'\multicolumn{6}{c}{\error}'
         stR.value = ' & '.join(stR.value.split(' & ')[2:])
         lock.acquire()
-        counter.value+=1; print(counter.value, '/ 90')
+        counter.value+=1; print(counter.value, f'/ {NUM_OF_CASES}')
+        lock.release()
+def svsim(root, stR, semaphore, lock, counter):
+    with semaphore:
+        cmd = f'timeout {TIMEOUT} ./test_SV-Sim.py {root}'#; print(cmd)
+        p = subprocess.run(cmd, shell=True, capture_output=True, executable='/bin/bash')
+        ret = p.returncode
+        if ret == 124:
+            stR.value = r'\timeout'
+        elif ret != 0:
+            stR.value = r'\multicolumn{1}{c}{\error}'
+        else:
+            stR.value = p.stdout.decode('utf-8').splitlines()[-1].strip()
+        lock.acquire()
+        counter.value+=1; print(counter.value, f'/ {NUM_OF_CASES}')
+        lock.release()
+symqvMap = {'BV': 'BVsingle', 'GHZall': 'GHZall', 'GHZzero': 'GHZsingle', 'Grover': 'GroverSingle', 'H2': 'H2all', 'HXH': 'HXHall', 'MCToffoli': 'MCXall', 'MOBV_reorder': 'BVall', 'MOGrover': 'GroverAll'}
+def symqv(root, stR, semaphore, lock, counter):
+    with semaphore:
+        cmd = f"cd /home/alan23273850/fabianbauermarquart-symqv-fa8ec7f/PLDI24/ && source ../.venv/bin/activate && timeout {TIMEOUT} ./{symqvMap[root.split('/')[1]]}.py {int(root.split('/')[2])}"#; print(cmd)
+        p = subprocess.run(cmd, shell=True, capture_output=True, executable='/bin/bash')
+        ret = p.returncode
+        if ret == 124:
+            stR.value = r'\timeout'
+        elif ret != 0:
+            stR.value = r'\multicolumn{1}{c}{\error}'
+        else:
+            # assume format: ('unsat', {}, 8.522298574447632)
+            stR.value = p.stdout.decode('utf-8').splitlines()[-1].strip()
+            match = re.search(r"\('unsat', {}, ([\d\.]*)\)", stR.value)
+            if match:
+                total_time = float(match.group(1)) # Extract the number within the square brackets
+                if total_time >= 60:
+                    stR.value = '%dm%.fs' % (int(total_time // 60), total_time % 60)
+                elif total_time >= 10:
+                    stR.value = '%.fs' % total_time
+                else:
+                    stR.value = '%.1fs' % total_time
+            else:
+                stR.value = 'Wrong Answer'
+        lock.acquire()
+        counter.value+=1; print(counter.value, f'/ {NUM_OF_CASES}')
+        lock.release()
+CaALMap = {'BV': 'BVsingle', 'GHZall': 'GHZall', 'GHZzero': 'GHZsingle', 'H2': 'H2all', 'HXH': 'HXHall', 'MCToffoli': 'MCXall', 'MOBV_reorder': 'BVall'}
+# 'Grover': 'GroverSingle',
+# 'MOGrover': 'GroverAll'
+def CaAL(root, stR, semaphore, lock, counter):
+    with semaphore:
+        key = root.split('/')[1]
+        if key in CaALMap:
+            cmd = f"time taskset -c {semaphore.get_value()} timeout {TIMEOUT} java -cp /home/alan23273850/princess/target/scala-2.11/Princess-assembly-2022-11-03.jar {CaALMap[key]} {int(root.split('/')[2])}"#; print(cmd)
+            p = subprocess.run(cmd, shell=True, capture_output=True, executable='/bin/bash')
+            ret = p.returncode
+            if ret == 124:
+                stR.value = r'\timeout'
+            elif ret != 0:
+                stR.value = r'\multicolumn{1}{c}{\error}'
+            else:
+                # assume format:
+                # Valid
+                # real    0m3.143s
+                # user    0m2.950s
+                # sys     0m0.192s
+                answer = p.stdout.decode('utf-8').splitlines()[0].strip()
+                if answer == 'Valid':
+                    total_time = p.stderr.decode('utf-8').splitlines()[-3].strip()
+                    assert(total_time.startswith('real'))
+                    stR.value = total_time.split()[-1]
+                else:
+                    stR.value = 'Wrong Answer'
+        else:
+            stR.value = r'\timeout'
+        lock.acquire()
+        counter.value+=1; print(counter.value, f'/ {NUM_OF_CASES}')
         lock.release()
 
 semaphore = Semaphore(NUM_OF_THREADS)
@@ -77,7 +150,7 @@ for root, dirnames, filenames in sorted(os.walk('.')):
     if len(dirnames) == 0 and 'pre.spec' in filenames and 'pre.aut' in filenames: # may be .aut or .spec
         process_pool_small = []
         string_pool_small = [manager.Value(c_wchar_p, root)]
-        for func in (CTA, TA):
+        for func in (CTA, TA, svsim, symqv, CaAL):
             semaphore.acquire(); semaphore.release()
             string_pool_small.append(manager.Value(c_wchar_p, ''))
             p = Process(target=func, args=(root, string_pool_small[-1], semaphore, lock, counter))
@@ -149,7 +222,9 @@ print(r'''\documentclass{article}
 \newcommand{\unknown}[0]{---\xspace}
 \newcommand{\nacell}[0]{\cellcolor{black!20}}
 \newcommand{\timeout}[0]{\nacell timeout}
+\newcommand{\error}[0]{\nacell error}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\post}[1]{\mathtt{post}_{#1}}
 
 % benchmarks
 \newcommand{\bvsingbench}[0]{\small\textsc{BV-Sing}\xspace}
@@ -168,13 +243,13 @@ print(r'''\documentclass{article}
 
 \begin{document}\pagenumbering{gobble}
 
-%\scalebox{0.8}
+%\scalebox{0.6}
 {\hspace{-100pt}
-\begin{tabular}{crrrrrrrrrrrrrrr}\hline
+\begin{tabular}{crrrrrrrrrrrrrrrrrr}\hline
 \toprule
-  &&&& \multicolumn{6}{c}{\autoq-\cta} & \multicolumn{6}{c}{\autoq-\ta} \\
+  &&&& \multicolumn{6}{c}{\cta} & \multicolumn{6}{c}{\autoq} & \multirow{2}{*}{SV-Sim} & \multirow{2}{*}{symQV} & \multirow{2}{*}{CaAL}\\
   \cmidrule(lr){5-10} \cmidrule(lr){11-16}
-  & \multicolumn{1}{c}{$n$} & \multicolumn{1}{c}{\textbf{\#q}} & \multicolumn{1}{c}{\textbf{\#G}} & \multicolumn{2}{c}{\textbf{before}} & \multicolumn{2}{c}{\textbf{after}} & \multicolumn{1}{c}{\textbf{analysis}} & \multicolumn{1}{c}{$=$} & \multicolumn{2}{c}{\textbf{before}} & \multicolumn{2}{c}{\textbf{after}} & \multicolumn{1}{c}{\textbf{analysis}} & \multicolumn{1}{c}{$=$}\\
+  & \multicolumn{1}{c}{$n$} & \multicolumn{1}{c}{\textbf{\#q}} & \multicolumn{1}{c}{\textbf{\#G}} & \multicolumn{2}{c}{\textbf{before}} & \multicolumn{2}{c}{\textbf{after}} & \multicolumn{1}{c}{$\post{C}$} & \multicolumn{1}{c}{$\subseteq$} & \multicolumn{2}{c}{\textbf{before}} & \multicolumn{2}{c}{\textbf{after}} & \multicolumn{1}{c}{$\post{C}$} & \multicolumn{1}{c}{$\subseteq$}\\
 \midrule
   \multirow{ 5}{*}{\rotatebox[origin=c]{90}{\bvsingbench}}
 ''' +
